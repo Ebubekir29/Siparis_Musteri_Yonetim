@@ -24,13 +24,19 @@ CLASS LCL_CLASS DEFINITION.
         IMPORTING
             E_UCOMM,
       send_mail,
-      display_alv.
+      display_alv,
+      pbo_0300,
+      pai_0300 IMPORTING iv_ucomm TYPE sy-UCOMM,
+      get_sipris,
+      set_fcat_sip,
+      set_layout_sip,
+      disp_alv_sip.
 ENDCLASS.
 
 
 CLASS LCL_CLASS IMPLEMENTATION.
   METHOD start_screen.
-    CALL SCREEN 0100.
+    CALL SCREEN 0200.
   ENDMETHOD.
   METHOD pbo_0100.
     SET PF-STATUS '0100'.
@@ -42,12 +48,33 @@ CLASS LCL_CLASS IMPLEMENTATION.
       when '&SAVE'.
         GO_MAIN->ADD_ORDER( ).
         GO_MAIN->SEND_MAIL( ).
-        CALL SCREEN 0200.
+        IF sy-subrc = 0.
+          MESSAGE 'Siparisiniz oluşturuldu.' TYPE 'I'.
+         CLEAR: GV_MUS_NO,
+                GV_SIP_NO,
+                gv_urun_no,
+                GV_TES_TAR,
+                GV_MIKTAR,
+                GV_SIP_TTR.
+          else.
+           MESSAGE 'Siparisiniz oluşturulamadı. Lütfen tekrar deneyiniz.' TYPE 'I'.
+        ENDIF.
+*        CALL SCREEN 0200.
       when '&EDIT'.
         GO_MAIN->EDIT_ORDER( ).
+        IF sy-subrc = 0.
+          MESSAGE 'Siparisiniz güncellendi.' TYPE 'I'.
+          else.
+           MESSAGE 'Siparisiniz güncellenemedi. Lütfen tekrar deneyiniz.' TYPE 'I'.
+        ENDIF.
         CALL SCREEN 0200.
       WHEN '&DLT'.
         GO_MAIN->DELETE_ORDER( ).
+        IF sy-subrc = 0.
+          MESSAGE 'Siparisiniz silindi.' TYPE 'I'.
+          else.
+           MESSAGE 'Siparisiniz silinemedi. Lütfen tekrar deneyiniz.' TYPE 'I'.
+        ENDIF.
         CALL SCREEN 0200.
     ENDCASE.
     IF GV_SIP_NO is not INITIAL.
@@ -64,11 +91,9 @@ CLASS LCL_CLASS IMPLEMENTATION.
         GV_TES_TAR  = GS_ZVBAK-erdat.
         GV_MIKTAR   = GS_ZVBAK-KWMENG.
         GV_SIP_TTR  = GS_ZVBAK-NETWR.
-        GV_STATUS   = GS_ZVBAK-STATUS.
+*        GV_STATUS   = GS_ZVBAK-STATUS.
         MODIFY SCREEN.
       ENDLOOP.
-*        Gs_MUSTERI-name1 = zmrt_kna1-name1.
-*        MODIFY SCREEN.
     ENDIF.
     IF GV_URUN_NO is not INITIAL.
       data: gt_mara type TABLE OF zmrt_mara,
@@ -100,6 +125,28 @@ CLASS LCL_CLASS IMPLEMENTATION.
         LEAVE TO SCREEN 0.
     ENDCASE.
   ENDMETHOD.
+  method pbo_0300.
+    SET PF-STATUS '0300'.
+  endmethod.
+  method pai_0300.
+    CASE IV_UCOMM.
+      WHEN '&BACK'.
+        LEAVE TO SCREEN 0.
+      WHEN '&GET_S'.
+        IF GV_MUS_NO is not INITIAL.
+          go_main->GET_SIPRIS( ).
+          IF GT_ALV_SIP is INITIAL.
+            MESSAGE 'Müsteri bulunamadı.' type 'I'.
+          else.
+            go_main->SET_FCAT_SIP( ).
+            go_main->SET_LAYOUT_SIP( ).
+            go_main->disp_alv_sip( ).
+          ENDIF.
+        ELSE.
+          MESSAGE 'Lütfen müsteri numarası giriniz.' TYPE 'I'.
+        ENDIF.
+    ENDCASE.
+  endmethod.
   METHOD get_data.
 *    SELECT VBAK~KUNNR,VBAK~VBELN,vbak~erdat,VBAK~NETWR, vbak~status,
 *        MARA~MAKTX,vbap~KWMENG
@@ -122,7 +169,6 @@ CLASS LCL_CLASS IMPLEMENTATION.
        AND GV_MUS_NO  IS INITIAL
        AND GV_SIP_TTR IS INITIAL
        AND GV_MIKTAR IS INITIAL
-       AND GV_STATUS IS INITIAL
        AND GV_URUN_NO IS INITIAL
        AND GV_TES_TAR IS INITIAL.
       MESSAGE 'Lütfen tüm alanları doldurunuz.' type 'I'.
@@ -138,7 +184,7 @@ CLASS LCL_CLASS IMPLEMENTATION.
       GS_ZVBAK-matnr  = gv_urun_no.
       GS_ZVBAK-ERDAT  = GV_TES_TAR.
       GS_ZVBAK-KWMENG = GV_MIKTAR.
-      GS_ZVBAK-STATUS = GV_STATUS.
+      GS_ZVBAK-STATUS = 'BEKLEMEDE'.
       GS_ZVBAK-NETWR  = GV_SIP_TTR.
       GS_ZVBAK-TOPLAM_TUTAR = GV_MIKTAR * GV_SIP_TTR.
 
@@ -156,7 +202,7 @@ CLASS LCL_CLASS IMPLEMENTATION.
        AND GV_MUS_NO  IS INITIAL
        AND GV_SIP_TTR IS INITIAL
        AND GV_MIKTAR IS INITIAL
-       AND GV_STATUS IS INITIAL
+*       AND GV_STATUS IS INITIAL
        AND GV_URUN_NO IS INITIAL
        AND GV_TES_TAR IS INITIAL.
       MESSAGE 'Lütfen tüm alanları doldurunuz.' type 'I'.
@@ -172,7 +218,7 @@ CLASS LCL_CLASS IMPLEMENTATION.
       GS_ZVBAK-matnr  = gv_urun_no.
       GS_ZVBAK-ERDAT  = GV_TES_TAR.
       GS_ZVBAK-KWMENG = GV_MIKTAR.
-      GS_ZVBAK-STATUS = GV_STATUS.
+*      GS_ZVBAK-STATUS = GV_STATUS.
       GS_ZVBAK-NETWR  = GV_SIP_TTR.
       GS_ZVBAK-TOPLAM_TUTAR = GV_MIKTAR * GV_SIP_TTR.
 *      ENDLOOP.
@@ -528,6 +574,109 @@ CLASS LCL_CLASS IMPLEMENTATION.
       ).
     else.
       call method go_grid->REFRESH_TABLE_DISPLAY.
+    ENDIF.
+  ENDMETHOD.
+  METHOD GET_SIPRIS.
+    select   orders~erdat,orders~netwr, orders~status, orders~kwmeng,orders~vbeln,orders~TOPLAM_TUTAR, mara~maktx, kna1~name1
+      from ZMRT_ORDERS as orders
+*      INNER JOIN zmrt_vbak as vbak on orders~VBELN = vbak~VBELN
+      INNER JOIN zmrt_mara as mara on orders~matnr = mara~matnr
+      INNER JOIN zmrt_kna1 as kna1 on orders~kunnr = kna1~kunnr
+      into CORRESPONDING FIELDS OF TABLE @GT_ALV_SIP
+      where orders~KUNNR = @GV_MUS_NO.
+  endmethod.
+  method set_fcat_sip.
+    CLEAR GS_FCAT_SIP.
+    GS_FCAT_SIP-REF_TABLE = 'zmrt_orders'.
+    GS_FCAT_SIP-REF_FIELD = 'VBELN'.
+    GS_FCAT_SIP-FIELDNAME = 'VBELN'.
+    GS_FCAT_SIP-SCRTEXT_S = 'Siparis N.'.
+    GS_FCAT_SIP-SCRTEXT_M = 'Siparis No'.
+    GS_FCAT_SIP-SCRTEXT_L = 'Siparis No'.
+    append GS_FCAT_SIP to GT_FCAT_SIP.
+    CLEAR GS_FCAT_SIP.
+    GS_FCAT_SIP-REF_TABLE = 'zmrt_orders'.
+    GS_FCAT_SIP-REF_FIELD = 'NAME1'.
+    GS_FCAT_SIP-FIELDNAME = 'NAME1'.
+    GS_FCAT_SIP-SCRTEXT_S = 'Müşteri A.'.
+    GS_FCAT_SIP-SCRTEXT_M = 'Müşteri Adı'.
+    GS_FCAT_SIP-SCRTEXT_L = 'Müşteri Adı'.
+    append GS_FCAT_SIP to GT_FCAT_SIP.
+    CLEAR GS_FCAT_SIP.
+    GS_FCAT_SIP-REF_TABLE = 'zmrt_orders'.
+    GS_FCAT_SIP-REF_FIELD = 'MAKTX'.
+    GS_FCAT_SIP-FIELDNAME = 'MAKTX'.
+    GS_FCAT_SIP-SCRTEXT_S = 'Malzeme A.'.
+    GS_FCAT_SIP-SCRTEXT_M = 'Malzeme Adı'.
+    GS_FCAT_SIP-SCRTEXT_L = 'Malzeme Adı'.
+    append GS_FCAT_SIP to GT_FCAT_SIP.
+    CLEAR GS_FCAT_SIP.
+    GS_FCAT_SIP-REF_TABLE = 'zmrt_orders'.
+    GS_FCAT_SIP-REF_FIELD = 'ERDAT'.
+    GS_FCAT_SIP-FIELDNAME = 'ERDAT'.
+    GS_FCAT_SIP-SCRTEXT_S = 'Siparis T.'.
+    GS_FCAT_SIP-SCRTEXT_M = 'Siparis Tarihi'.
+    GS_FCAT_SIP-SCRTEXT_L = 'Siparis Tarihi'.
+    append GS_FCAT_SIP to GT_FCAT_SIP.
+    CLEAR GS_FCAT_SIP.
+    GS_FCAT_SIP-REF_TABLE = 'zmrt_orders'.
+    GS_FCAT_SIP-REF_FIELD = 'KWMENG'.
+    GS_FCAT_SIP-FIELDNAME = 'KWMENG'.
+    GS_FCAT_SIP-SCRTEXT_S = 'Miktar'.
+    GS_FCAT_SIP-SCRTEXT_M = 'Miktar'.
+    GS_FCAT_SIP-SCRTEXT_L = 'Miktar'.
+    append GS_FCAT_SIP to GT_FCAT_SIP.
+    CLEAR GS_FCAT_SIP.
+    GS_FCAT_SIP-REF_TABLE = 'zmrt_orders'.
+    GS_FCAT_SIP-REF_FIELD = 'NETWR'.
+    GS_FCAT_SIP-FIELDNAME = 'NETWR'.
+    GS_FCAT_SIP-SCRTEXT_S = 'Fiyat'.
+    GS_FCAT_SIP-SCRTEXT_M = 'Fiyat'.
+    GS_FCAT_SIP-SCRTEXT_L = 'Fiyat'.
+    append GS_FCAT_SIP to GT_FCAT_SIP.
+    CLEAR GS_FCAT_SIP.
+    GS_FCAT_SIP-REF_TABLE = 'zmrt_orders'.
+    GS_FCAT_SIP-REF_FIELD = 'TOPLAM_TUTAR'.
+    GS_FCAT_SIP-FIELDNAME = 'TOPLAM_TUTAR'.
+    GS_FCAT_SIP-SCRTEXT_S = 'Toplam Tutar'.
+    GS_FCAT_SIP-SCRTEXT_M = 'Toplam Tutar'.
+    GS_FCAT_SIP-SCRTEXT_L = 'Toplam Tutar'.
+    append GS_FCAT_SIP to GT_FCAT_SIP.
+    CLEAR GS_FCAT_SIP.
+    GS_FCAT_SIP-REF_TABLE = 'zmrt_orders'.
+    GS_FCAT_SIP-REF_FIELD = 'STATUS'.
+    GS_FCAT_SIP-FIELDNAME = 'STATUS'.
+    GS_FCAT_SIP-SCRTEXT_S = 'Durum'.
+    GS_FCAT_SIP-SCRTEXT_M = 'Durum'.
+    GS_FCAT_SIP-SCRTEXT_L = 'Durum'.
+    append GS_FCAT_SIP to GT_FCAT_SIP.
+  ENDMETHOD.
+  METHOD set_layout_sip.
+    GS_LAYO_SIP-COL_OPT    = 'X'.
+    GS_LAYO_SIP-CWIDTH_OPT = 'X'.
+    GS_LAYO_SIP-ZEBRA      = 'X'.
+  ENDMETHOD.
+  method disp_alv_sip.
+    IF GO_GRID_SIP is INITIAL .
+      CREATE OBJECT GO_CONT_SIP
+        exporting
+          CONTAINER_NAME = 'CC_ALV_GET_SIP'.
+      create OBJECT GO_GRID_SIP
+        exporting
+          I_PARENT = GO_CONT_SIP.
+
+      GO_GRID_SIP->SET_TABLE_FOR_FIRST_DISPLAY(
+        exporting
+          IS_LAYOUT                     =  GS_LAYO_SIP
+        changing
+          IT_OUTTAB                     =  GT_ALV_SIP
+          IT_FIELDCATALOG               =  GT_FCAT_SIP  ).
+      GO_GRID_SIP->REGISTER_EDIT_EVENT(
+        exporting
+          I_EVENT_ID =   cl_gui_alv_grid=>MC_EVT_MODIFIED
+      ).
+    else.
+      call method GO_GRID_SIP->REFRESH_TABLE_DISPLAY.
     ENDIF.
   ENDMETHOD.
 ENDCLASS.

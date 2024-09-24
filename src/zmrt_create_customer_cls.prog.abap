@@ -24,6 +24,9 @@ CLASS LCL_CLASS DEFINITION.
       send_excel FOR EVENT user_command of cl_gui_alv_grid
         IMPORTING
             E_UCOMM,
+      batch_input FOR EVENT user_command of cl_gui_alv_grid
+        IMPORTING
+            E_UCOMM,
       display_alv.
 ENDCLASS.
 
@@ -38,22 +41,6 @@ CLASS LCL_CLASS IMPLEMENTATION.
     go_main->set_fcat( ).
     go_main->SET_LAYOUT( ).
     go_main->DISPLAY_ALV( ).
-*    data: gt_return_tab type TABLE OF DDSHRETVAL,
-*          gt_mapping type TABLE OF dselc,
-*          gs_mapping type dselc.
-*
-*    CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
-*    EXPORTING
-*      RETFIELD               = 'KUNNR'
-*     DYNPPROG                = sy-repid
-*     DYNPNR                  = sy-DYNNR
-*     DYNPROFIELD             = 'GV_CUST_NO'
-*     VALUE_ORG               = 'S'
-*    TABLES
-*      VALUE_TAB              = GT_MUSTERI
-*     RETURN_TAB              = gt_return_tab
-*     DYNPFLD_MAPPING         =
-.
   ENDMETHOD.
   METHOD PAI_0100.
     CASE iv_ucomm.
@@ -66,27 +53,6 @@ CLASS LCL_CLASS IMPLEMENTATION.
       when '&DLT'.
         GO_MAIN->DELETE_CUST( ).
     ENDCASE.
-
-*    IF GV_CUST_NO is not INITIAL.
-*      SELECT KUNNR,NAME1,STCD1,LAND1,ORT01,STRAS,TELF1,SMTP_ADDR
-*        from zmrt_kna1
-*        into CORRESPONDING FIELDS OF TABLE @gt_musteri
-*        WHERE KUNNR = @GV_CUST_NO.
-*      SORT GT_MUSTERI ASCENDING BY KUNNR.
-*      LOOP AT gt_musteri into gs_musteri.
-*        GV_CUST_NO  = GS_MUSTERI-KUNNR.
-*        GV_NAME     = GS_MUSTERI-NAME1.
-*        GV_EMAIL    = GS_MUSTERI-SMTP_ADDR.
-*        GV_SEHIR    = GS_MUSTERI-ORT01.
-*        GV_SOKAK    = GS_MUSTERI-STRAS.
-*        GV_TAX_NO   = GS_MUSTERI-STCD1.
-*        GV_TELEFON  = GS_MUSTERI-TELF1.
-*        GV_ULKE     = GS_MUSTERI-LAND1.
-*        MODIFY SCREEN.
-*      ENDLOOP.
-**        Gs_MUSTERI-name1 = zmrt_kna1-name1.
-**        MODIFY SCREEN.
-*    ENDIF.
   ENDMETHOD.
   METHOD PBO_0200.
     SET PF-STATUS '0200'.
@@ -100,10 +66,11 @@ CLASS LCL_CLASS IMPLEMENTATION.
     CASE iv_ucomm.
       WHEN '&BACK'.
         LEAVE TO SCREEN 0.
+      when '&batch'.
+        GO_MAIN->BATCH_INPUT( ).
     ENDCASE.
   ENDMETHOD.
   METHOD GET_DATA.
-*      SELECT KUNNR,NAME1,STCD1,LAND1,ORT01,STRAS,TELF1,SMTP_ADDR
     SELECT *
       FROM ZMRT_KNA1 INTO CORRESPONDING FIELDS OF TABLE GT_MUSTERI.
   ENDMETHOD.
@@ -118,24 +85,32 @@ CLASS LCL_CLASS IMPLEMENTATION.
     and GV_NAME    IS INITIAL.
       MESSAGE 'Lütfen tüm alanları doldurunuz.' type 'I'.
     else.
-      GS_MUSTERI-KUNNR     = GV_CUST_NO.
-      GS_MUSTERI-NAME1     = GV_NAME.
-      GS_MUSTERI-STCD1     = GV_TAX_NO.
-      GS_MUSTERI-LAND1     = GV_ULKE.
-      GS_MUSTERI-ORT01     = GV_SEHIR.
-      GS_MUSTERI-STRAS     = GV_SOKAK.
-      GS_MUSTERI-SMTP_ADDR = GV_EMAIL.
-      GS_MUSTERI-TELF1     = GV_TELEFON.
-      Insert ZMRT_KNA1 from GS_MUSTERI.
-      IF sy-SUBRC = 0.
-        MESSAGE 'Müşteri başarılı bir şekilde oluşturuldu.' type 'I'.
-*        CALL SCREEN 0200.
+      perform check_tel_number.
+      PERFORM validate_email.
+
+      IF matcher->match( ) is INITIAL.
+        MESSAGE 'Email Formatını yanlıs girdiniz.' TYPE 'I'.
       ELSE.
-        message 'Müşteri Oluşturulamadı.Tekrar deneyin.' type 'I'.
+        GS_MUSTERI-KUNNR     = GV_CUST_NO.
+        GS_MUSTERI-NAME1     = GV_NAME.
+        GS_MUSTERI-STCD1     = GV_TAX_NO.
+        GS_MUSTERI-LAND1     = GV_ULKE.
+        GS_MUSTERI-ORT01     = GV_SEHIR.
+        GS_MUSTERI-STRAS     = GV_SOKAK.
+        GS_MUSTERI-SMTP_ADDR = GV_EMAIL.
+        GS_MUSTERI-TELF1     = GV_TELEFON.
+        Insert ZMRT_KNA1 from GS_MUSTERI.
+        IF sy-SUBRC = 0.
+          MESSAGE 'Müşteri başarılı bir şekilde oluşturuldu.' type 'I'.
+            perform clear_text.
+        ELSE.
+          message 'Müşteri Oluşturulamadı.Tekrar deneyin.' type 'I'.
+        ENDIF.
       ENDIF.
     ENDIF.
   ENDMETHOD.
   method EDIT_CUST.
+
     GS_MUSTERI-NAME1     = GV_NAME.
     GS_MUSTERI-STCD1     = GV_TAX_NO.
     GS_MUSTERI-LAND1     = GV_ULKE.
@@ -148,7 +123,7 @@ CLASS LCL_CLASS IMPLEMENTATION.
                       WHERE kunnr = @GV_CUST_NO.
     IF sy-SUBRC = 0.
       MESSAGE 'Müşteri başarılı bir şekilde güncellendi.' type 'I'.
-*      CALL SCREEN 0200.
+      perform clear_text.
     ELSE.
       message 'Müşteri güncellenemedi.Tekrar deneyin.' type 'I'.
     ENDIF.
@@ -157,20 +132,12 @@ CLASS LCL_CLASS IMPLEMENTATION.
     DELETE FROM ZMRT_KNA1 WHERE KUNNR = @GV_CUST_NO.
     IF sy-SUBRC = 0.
       MESSAGE 'Müşteri başarılı bir şekilde silindi.' type 'I'.
-*      CALL SCREEN 0200.
+      perform clear_text.
     ELSE.
       message 'Müşteri silinemedi.Tekrar deneyin.' type 'I'.
     ENDIF.
   ENDMETHOD.
   METHOD set_fcat.
-*    CLEAR gs_fcat.
-*    gs_fcat-REF_TABLE = 'ZMRT_KNA1'.
-*    gs_fcat-REF_FIELD = 'MANDT'.
-*    gs_fcat-FIELDNAME = 'MANDT'.
-*    gs_fcat-SCRTEXT_S = 'Müşteri N.'.
-*    gs_fcat-SCRTEXT_M = 'Müşteri No.'.
-*    gs_fcat-SCRTEXT_L = 'Müşteri No.'.
-*    append gs_fcat to gt_fcat.
     CLEAR gs_fcat.
     gs_fcat-REF_TABLE = 'ZMRT_KNA1'.
     gs_fcat-REF_FIELD = 'KUNNR'.
@@ -248,7 +215,14 @@ CLASS LCL_CLASS IMPLEMENTATION.
     LS_TOOLBAR-TEXT      = 'Excele Kaydet'.
     LS_TOOLBAR-FUNCTION  = '&KYDT'.
     LS_TOOLBAR-QUICKINFO = 'Excele Kaydet'.
-    LS_TOOLBAR-ICON = '@DN@'.
+    LS_TOOLBAR-ICON = '@2V@'.
+    append ls_toolbar to E_OBJECT->MT_TOOLBAR.
+
+    CLEAR: ls_toolbar.
+    LS_TOOLBAR-TEXT      = 'Excelden Müsteri Ekle'.
+    LS_TOOLBAR-FUNCTION  = '&add'.
+    LS_TOOLBAR-QUICKINFO = 'Excelden Müsteri Ekle'.
+    LS_TOOLBAR-ICON = '@2L@'.
     append ls_toolbar to E_OBJECT->MT_TOOLBAR.
   ENDMETHOD.
   METHOD send_excel.
@@ -266,20 +240,15 @@ CLASS LCL_CLASS IMPLEMENTATION.
             lv_sehir       TYPE string,
             lv_sokak       TYPE string,
             lv_vergiNo     TYPE string,
-*            lv_filename    TYPE string,
             lv_path        TYPE string,
             lv_fullpath    TYPE string,
             lv_user_action TYPE i.
 
-
       call method CL_GUI_FRONTEND_SERVICES=>FILE_SAVE_DIALOG
         exporting
-*         WINDOW_TITLE        =     " Window Title
-*         DEFAULT_EXTENSION   =     " Default Extension
-*         DEFAULT_FILE_NAME   =     " Default File Name
-*         WITH_ENCODING       =
-*         FILE_FILTER         =     " File Type Filter Table
-*         INITIAL_DIRECTORY   =     " Initial Directory
+*         WINDOW_TITLE        = ''
+          DEFAULT_EXTENSION   = '.xls'   " Default Extension
+          DEFAULT_FILE_NAME   = 'ornek'  " Default File Name
           PROMPT_ON_OVERWRITE = 'X'
         changing
           filename            = lv_filename
@@ -287,8 +256,6 @@ CLASS LCL_CLASS IMPLEMENTATION.
           fullpath            = lv_fullpath
           user_action         = lv_user_action.
       .
-
-*      lv_filename = 'C:\Users\MRT\Downloads\ornek31.xls'.
 
       CONCATENATE 'Musteri No' 'Müsteri Adı' 'Email' 'Telefon' 'Ulke' 'Sehir' 'Sokak' 'Vergi No'
                   INTO lv_line SEPARATED BY cl_abap_char_utilities=>horizontal_tab.
@@ -309,7 +276,6 @@ CLASS LCL_CLASS IMPLEMENTATION.
         APPEND lv_line TO lt_excel_data.
       ENDLOOP.
 
-
       CALL FUNCTION 'GUI_DOWNLOAD'
         EXPORTING
           filename              = lv_fullpath
@@ -328,6 +294,84 @@ CLASS LCL_CLASS IMPLEMENTATION.
       ENDIF.
     ENDIF.
   ENDMETHOD.
+  method batch_input.
+    IF e_ucomm = '&add'.
+      DATA: it_excel      TYPE TABLE OF alsmex_tabline,
+            lv_file       TYPE rlgrap-filename,
+            lt_file_table type FILETABLE,
+            lv_patch      type string,
+            LV_RC         TYPE I.
+
+      call method CL_GUI_FRONTEND_SERVICES=>FILE_OPEN_DIALOG
+        changing
+          FILE_TABLE              = lt_file_table
+          RC                      = LV_RC
+        exceptions
+          FILE_OPEN_DIALOG_FAILED = 1
+          CNTL_ERROR              = 2
+          ERROR_NO_GUI            = 3
+          NOT_SUPPORTED_BY_GUI    = 4
+          OTHERS                  = 5.
+
+      IF lv_rc = 1 AND lt_file_table IS NOT INITIAL.
+        READ TABLE lt_file_table INTO DATA(ls_file) INDEX 1.
+        lv_file = ls_file-filename.
+      ELSE.
+        MESSAGE 'Dosya seçilmedi!' TYPE 'I'.
+        RETURN.
+      ENDIF.
+
+      CALL FUNCTION 'ALSM_EXCEL_TO_INTERNAL_TABLE'
+        EXPORTING
+          filename                = lv_file
+          i_begin_col             = 1
+          i_begin_row             = 2
+          i_end_col               = 8
+          i_end_row               = 1000
+        TABLES
+          intern                  = it_excel
+        EXCEPTIONS
+          inconsistent_parameters = 1
+          upload_ole              = 2
+          OTHERS                  = 3.
+
+      DATA: it_final TYPE TABLE OF GTY_KNA1, " Tablo yapınızın tipi
+            wa_final TYPE GTY_KNA1.
+
+      LOOP AT it_excel INTO DATA(wa_excel).
+        CASE wa_excel-col.
+          WHEN 1.
+            wa_final-kunnr = wa_excel-value.
+          WHEN 2.
+            wa_final-name1 = wa_excel-value.
+          WHEN 3.
+            wa_final-stcd1 = wa_excel-value.
+          WHEN 4.
+            wa_final-land1 = wa_excel-value.
+          WHEN 5.
+            wa_final-ort01 = wa_excel-value.
+          WHEN 6.
+            wa_final-stras = wa_excel-value.
+          WHEN 7.
+            wa_final-telf1 = wa_excel-value.
+          WHEN 8.
+            wa_final-smtp_addr = wa_excel-value.
+        ENDCASE.
+
+        IF wa_excel-col = 8. " Son sütun
+          INSERT zmrt_kna1 FROM wa_final.
+          CLEAR wa_final.
+        ENDIF.
+      ENDLOOP.
+      IF sy-subrc = 0.
+        message: 'Veri başarıyla eklendi: ' TYPE 'I'.
+        call METHOD GO_MAIN->GET_DATA.
+        call METHOD GO_GRID->REFRESH_TABLE_DISPLAY( ).
+      ELSE.
+        MESSAGE: 'Veri eklenirken hata oluştu: ' type 'I'.
+      ENDIF.
+    ENDIF.
+  endmethod.
   METHOD display_alv.
     IF GO_GRID is INITIAL .
       CREATE OBJECT GO_CONT
@@ -340,6 +384,7 @@ CLASS LCL_CLASS IMPLEMENTATION.
       create OBJECT go_main.
       set HANDLER GO_MAIN->HANDLE_TOOLBAR for go_grid.
       set HANDLER GO_MAIN->SEND_EXCEL     for go_grid.
+      set HANDLER GO_MAIN->batch_input    for go_grid.
 
       go_grid->SET_TABLE_FOR_FIRST_DISPLAY(
         exporting

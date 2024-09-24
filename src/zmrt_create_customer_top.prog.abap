@@ -5,6 +5,7 @@
 CLASS LCL_CLASS DEFINITION DEFERRED.
 TABLES: zmrt_kna1.
 TYPES: BEGIN OF gty_kna1,
+         mandt      type mandt,
          KUNNR      type KUNNR,
          NAME1      type NAME1_GP,
          STCD1      type STCD1,
@@ -36,3 +37,5 @@ DATA: GV_CUST_NO TYPE ZMRT_KNA1-KUNNR,
       GV_SOKAK   TYPE ZMRT_KNA1-STRAS,
       GV_EMAIL   TYPE ZMRT_KNA1-SMTP_ADDR,
       GV_TELEFON TYPE ZMRT_KNA1-TELF1.
+
+DATA matcher TYPE REF TO cl_abap_matcher.
