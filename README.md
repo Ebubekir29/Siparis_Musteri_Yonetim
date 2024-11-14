@@ -9,6 +9,12 @@ toplu bir sekilde Excele kaydedilebilmektedir. Excelden Müsteri Ekle butonu ile
 
 <img width="833" alt="ad" src="https://github.com/user-attachments/assets/9806284c-9c96-4129-bcaa-629a2c0ecd7b">
 
+# Siparis İslemleri Sekmesi
+Siparis islemleri sekmesinde siparis olusturulabilir,düzenlenebilir veya siparis silinebilir. Search help ile veriler otomatik getirilebilmektedir.
+
+<img width="788" alt="xssx" src="https://github.com/user-attachments/assets/b1b1d151-681e-49a1-89ce-b1f52e70ab32">
+
+
 # Siparislerim Sekmesi
 
 Siparislerim sekmesinde müsteri numarısı search help ile girilip Siparislerim butonuna basıldıgında OO-ALV DE müsterinin verdigi siparisler listelenir.
