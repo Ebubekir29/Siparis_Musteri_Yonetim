@@ -7,4 +7,5 @@ yapılmış fatura pdf şeklinde gönderilmiştir. Projede kullanılan veriler S
 Müşteri işlemleri sekmesinde müsteri olusturlabilir,düzenlenebilir veya müsteri silinebilir. OO-ALV 'deki Excele Kaydet butonuyla müsteriler 
 toplu bir sekilde Excele kaydedilebilmektedir. Excelden Müsteri Ekle butonu ile toplu olarak müsterileri Sap'ye ekleme işlemleri gerceklestirilebilmektedir.
 
-<img width="824" alt="asd" src="https://github.com/user-attachments/assets/2f21b708-6af4-4133-8077-e403aac52c50">
+<img width="833" alt="ad" src="https://github.com/user-attachments/assets/9806284c-9c96-4129-bcaa-629a2c0ecd7b">
+
