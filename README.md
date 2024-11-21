@@ -20,6 +20,8 @@ Siparis islemleri sekmesinde siparis olusturulabilir,düzenlenebilir veya sipari
 Siparislerim sekmesinde müsteri numarısı search help ile girilip Siparislerim butonuna basıldıgında OO-ALV DE müsterinin verdigi siparisler listelenir.
 Siparislerin durumuna göre (iptal,beklemede,onaylandı) renklendirme yapılmıştır.
 
+<img width="611" alt="ede" src="https://github.com/user-attachments/assets/65e1c8cc-75ab-4d33-b592-858f6bd57ae7">
+
 # Fatura 
 Smartforms ile siparis faturası oluşturulmuştur.
 
