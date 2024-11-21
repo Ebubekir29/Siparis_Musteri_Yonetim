@@ -30,6 +30,6 @@ Smartforms ile siparis faturası oluşturulmuştur.
 
 # Veritabanı Tabloları
 
-<img width="512" alt="Ekran görüntüsü 2024-11-21 172924" src="https://github.com/user-attachments/assets/afb918fd-73fe-42ad-a413-89af17730e5d">
+<img width="520" alt="Ekran görüntüsü 2024-11-21 173140" src="https://github.com/user-attachments/assets/3567883f-e6ac-4c83-86d9-3c91705db6cd">
 <img width="482" alt="Ekran görüntüsü 2024-11-21 172946" src="https://github.com/user-attachments/assets/9d135c16-ce09-41f8-b36f-ad2c82c7a5f4">
 <img width="449" alt="Ekran görüntüsü 2024-11-21 173004" src="https://github.com/user-attachments/assets/84e68b8c-4be8-4170-92b5-e8b68bb811d2">
