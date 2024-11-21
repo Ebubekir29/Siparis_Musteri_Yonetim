@@ -21,9 +21,10 @@ Siparislerim sekmesinde müsteri numarısı search help ile girilip Siparislerim
 Siparislerin durumuna göre (iptal,beklemede,onaylandı) renklendirme yapılmıştır.
 
 <img width="611" alt="ede" src="https://github.com/user-attachments/assets/65e1c8cc-75ab-4d33-b592-858f6bd57ae7">
+<img width="412" alt="ee" src="https://github.com/user-attachments/assets/03634305-f82e-4bbc-a47d-e686d541883b">
 
 # Fatura 
 Smartforms ile siparis faturası oluşturulmuştur.
 
-
+<img width="451" alt="Ekran görüntüsü 2024-11-21 172044" src="https://github.com/user-attachments/assets/ec2d57fc-ab7b-4573-a7e9-23a5cecb3aa7">
 
